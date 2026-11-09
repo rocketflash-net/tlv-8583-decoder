@@ -2,7 +2,7 @@
 
 Paste an ISO 8583 message as text and get every data element decoded into a JSON object.
 
-**Live:** https://rocketflash-net.github.io/tlv-8535-decoder/
+**Live:** https://rocketflash-net.github.io/tlv-8583-decoder/
 
 - Reads the MTI, the primary and secondary hex bitmaps, then each data element by its ISO 8583:1987 format (fixed, LLVAR, LLLVAR)
 - QRIS switching profile: DE41 as ans16, DE43 split into merchant name, city and country, TLV in DE48 (PI, CD, MC) and DE57 (61 postal code, 62 additional data)
