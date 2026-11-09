@@ -158,6 +158,34 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
   .row.child{padding-left:calc(.9rem + var(--d,1) * .5rem)}
 }
 @media (prefers-reduced-motion:reduce){.row,.raw .seg{transition:none}}
+
+/* Tool tabs */
+.tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--line);margin-top:.25rem;overflow-x:auto;scrollbar-width:none}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:.7rem .9rem;font:600 .95rem/1.2 "Schibsted Grotesk",sans-serif;color:var(--slate);cursor:pointer;white-space:nowrap}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--cobalt);border-bottom-color:var(--cobalt)}
+.tabs button:focus-visible{outline:2px solid var(--cobalt);outline-offset:-2px}
+.tab[hidden]{display:none}
+
+/* A -> B */
+.fields2{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:.9rem}
+.fld label{display:block;font-weight:600;font-size:.92rem;margin:0 0 .45rem .2rem}
+.fld input{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:400 .95rem/1.4 "IBM Plex Mono",ui-monospace,monospace;padding:.75rem .9rem}
+.fld input:focus{border-color:var(--cobalt)}
+.fld small{display:block;color:var(--slate);font-size:.8rem;margin:.35rem 0 0 .2rem}
+.answer{margin-top:1.25rem;padding:1.25rem 1.25rem 1.1rem}
+.answer .lbl{color:var(--slate);font-size:.82rem;font-weight:500}
+.answer .big{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;margin-top:.25rem}
+.answer .big code{font:500 clamp(1.25rem,3.6vw,1.75rem)/1.25 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:-.01em;overflow-wrap:anywhere}
+.answer .big code.muted{color:var(--slate)}
+.answer .note{margin-top:.7rem;color:var(--slate);font-size:.92rem;max-width:46rem}
+.answer .alts{margin-top:.6rem;font:400 .88rem/1.6 "IBM Plex Mono",monospace}
+.progress{height:4px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:.9rem}
+.progress i{display:block;height:100%;width:0;background:var(--cobalt);transition:width .15s}
+.progress[hidden]{display:none}
+@media (max-width:600px){
+  .fields2{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -174,6 +202,12 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
     </div>
   </div>
 
+  <nav class="tabs" role="tablist" aria-label="Tools">
+    <button type="button" role="tab" id="tabbtn-iso" aria-controls="tab-iso" aria-selected="true" data-tab="iso" data-t="tabIso"></button>
+    <button type="button" role="tab" id="tabbtn-ab" aria-controls="tab-ab" aria-selected="false" data-tab="ab" data-t="tabAb"></button>
+  </nav>
+
+  <section class="tab" id="tab-iso" role="tabpanel" aria-labelledby="tabbtn-iso">
   <header class="top">
     <h1>ISO <span>8583</span> Decoder</h1>
     <p class="lede" data-t="lede"></p>
@@ -227,6 +261,38 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
       <ul class="rows" id="rows"></ul>
     </div>
   </div>
+  </section>
+
+  <section class="tab" id="tab-ab" role="tabpanel" aria-labelledby="tabbtn-ab" hidden>
+    <header class="top">
+      <h1>A <span>→</span> B</h1>
+    </header>
+
+    <div class="card input">
+      <div class="fields2">
+        <div class="fld">
+          <label for="xA">A</label>
+          <input id="xA" spellcheck="false" autocomplete="off" autocapitalize="characters" maxlength="40">
+        </div>
+        <div class="fld">
+          <label for="xK">Key</label>
+          <input id="xK" spellcheck="false" autocomplete="off" autocapitalize="off" maxlength="64">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" id="xClear" data-t="clear"></button>
+        <span class="status" id="xStatus" hidden></span>
+      </div>
+      <div class="progress" id="xProg" hidden><i></i></div>
+    </div>
+
+    <div class="card answer" id="xOut" hidden>
+      <div class="lbl">B</div>
+      <div class="big"><code id="xB"></code><button class="btn" type="button" id="xCopy" data-t="copyJson" hidden></button></div>
+      <p class="note" id="xNote"></p>
+      <div class="alts" id="xAlts"></div>
+    </div>
+  </section>
 </div>
 
 <footer><div class="wrap"><span data-t="by"></span> <a href="https://rocketflash-net.github.io/it/">Daniel Aldo Pratama</a> · <a href="https://github.com/rocketflash-net/tlv-8583-decoder" target="_blank" rel="noopener" data-t="source"></a></div></footer>
@@ -249,7 +315,8 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
       privacy: 'The message never leaves this page. Nothing is sent to a server or stored.',
       ref: 'Field formats follow ISO 8583:1987 in ASCII with a hex bitmap. The QRIS profile uses the Indonesian switching layout (DE41 ans16, DE43 name/city/country, TLV in DE48 and DE57). For learning and debugging, not an official validator.',
       by: 'Built by', source: 'Source on GitHub',
-      sMsg: 'Message', sAmount: 'Amount', sMerchant: 'Merchant', sRrn: 'RRN', sRc: 'Response', sFields: 'Fields'
+      sMsg: 'Message', sAmount: 'Amount', sMerchant: 'Merchant', sRrn: 'RRN', sRc: 'Response', sFields: 'Fields',
+      tabIso: 'ISO 8583 Decoder', tabAb: 'A → B'
     },
     id: {
       lede: 'Tempel pesan ISO 8583 dalam bentuk teks (MTI, bitmap hex, lalu data element) dan setiap field akan di-decode menjadi objek JSON, termasuk sub-field QRIS switching di DE43, DE48 dan DE57. Semua diproses di browser Anda.',
@@ -263,7 +330,8 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
       privacy: 'Pesan tidak pernah keluar dari halaman ini. Tidak ada yang dikirim ke server atau disimpan.',
       ref: 'Format field mengikuti ISO 8583:1987 dalam ASCII dengan bitmap hex. Profil QRIS memakai layout switching Indonesia (DE41 ans16, DE43 nama/kota/negara, TLV di DE48 dan DE57). Untuk belajar dan debugging, bukan validator resmi.',
       by: 'Dibuat oleh', source: 'Kode sumber di GitHub',
-      sMsg: 'Pesan', sAmount: 'Nominal', sMerchant: 'Merchant', sRrn: 'RRN', sRc: 'Respons', sFields: 'Jumlah field'
+      sMsg: 'Pesan', sAmount: 'Nominal', sMerchant: 'Merchant', sRrn: 'RRN', sRc: 'Respons', sFields: 'Jumlah field',
+      tabIso: 'ISO 8583 Decoder', tabAb: 'A → B'
     }
   };
   var lang = 'en';
@@ -796,6 +864,7 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
     document.querySelectorAll('.lang button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === l)); });
     try { localStorage.setItem('iso8583-lang', l); } catch (e) {}
     render();
+    document.dispatchEvent(new CustomEvent('langchange', {detail: l}));
   }
   document.querySelectorAll('.lang button').forEach(function(b){
     b.addEventListener('click', function(){ applyLang(b.getAttribute('data-lang')); });
@@ -843,6 +912,239 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
 
   // Exposed for testing in the console
   window.iso8583 = { decode: function(s, profile){ var pr = profile || 'qris', p = parse(s, pr), d = decode(p, pr); return serialize(d.entries, false); } };
+})();
+</script>
+
+<script>
+(function(){
+  'use strict';
+
+  // Shared by the page and the worker, so it must be self-contained.
+  function core(){
+    var K = new Int32Array(64), S = [7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];
+    for (var i = 0; i < 64; i++) K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) | 0;
+    var G = new Uint8Array(64);
+    for (var j = 0; j < 64; j++) G[j] = j < 16 ? j : j < 32 ? (5 * j + 1) % 16 : j < 48 ? (3 * j + 5) % 16 : (7 * j) % 16;
+    var LE = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
+
+    function Msg(bytes){
+      var n = bytes.length, blocks = ((n + 8) >> 6) + 1;
+      this.buf = new ArrayBuffer(blocks * 64);
+      this.u8 = new Uint8Array(this.buf);
+      this.w = new Int32Array(this.buf);
+      this.u8.set(bytes); this.u8[n] = 0x80;
+      var bits = n * 8;
+      this.u8[blocks * 64 - 8] = bits & 255; this.u8[blocks * 64 - 7] = (bits >>> 8) & 255; this.u8[blocks * 64 - 6] = (bits >>> 16) & 255; this.u8[blocks * 64 - 5] = (bits >>> 24) & 255;
+      this.blocks = blocks;
+      this.out = new Int32Array(4);
+      if (!LE) this.wbe = new Int32Array(blocks * 16);
+    }
+    Msg.prototype.digest = function(){
+      var x = this.w, u = this.u8;
+      if (!LE){ for (var q = 0; q < x.length; q++) this.wbe[q] = u[q*4] | (u[q*4+1] << 8) | (u[q*4+2] << 16) | (u[q*4+3] << 24); x = this.wbe; }
+      var a0 = 0x67452301, b0 = 0xefcdab89 | 0, c0 = 0x98badcfe | 0, d0 = 0x10325476;
+      for (var blk = 0; blk < this.blocks; blk++){
+        var o = blk * 16, a = a0, b = b0, c = c0, d = d0, f, t;
+        for (var r = 0; r < 64; r++){
+          if (r < 16) f = (b & c) | (~b & d);
+          else if (r < 32) f = (d & b) | (~d & c);
+          else if (r < 48) f = b ^ c ^ d;
+          else f = c ^ (b | ~d);
+          t = d; d = c; c = b;
+          f = (f + a + K[r] + x[o + G[r]]) | 0;
+          b = (b + ((f << S[r]) | (f >>> (32 - S[r])))) | 0;
+          a = t;
+        }
+        a0 = (a0 + a) | 0; b0 = (b0 + b) | 0; c0 = (c0 + c) | 0; d0 = (d0 + d) | 0;
+      }
+      this.out[0] = a0; this.out[1] = b0; this.out[2] = c0; this.out[3] = d0;
+      return this.out;
+    };
+    function hexOf(words){
+      var h = '';
+      for (var i = 0; i < 4; i++) for (var k = 0; k < 4; k++) h += ((words[i] >>> (k * 8)) & 255).toString(16).padStart(2, '0');
+      return h;
+    }
+    var enc = new TextEncoder();
+    function hx(str){ return hexOf(new Msg(enc.encode(str)).digest()); }
+
+    // Enumerate head + [cs]^n + tail and keep candidates whose digest starts with target.
+    function search(job, key, onTick){
+      var head = enc.encode(key + ':' + job.head), tail = enc.encode(job.tail || ''), n = job.n, cs = job.cs || '';
+      var bytes = new Uint8Array(head.length + n + tail.length);
+      bytes.set(head); bytes.set(tail, head.length + n);
+      var csb = enc.encode(cs), idx = new Int32Array(n);
+      for (var p = 0; p < n; p++) bytes[head.length + p] = csb[0];
+      var m = new Msg(bytes), T = job.target.toLowerCase();
+      var ta = 0;
+      for (var z = 0; z < 4; z++) ta |= parseInt(T.substr(z * 2, 2), 16) << (z * 8);
+      var total = Math.pow(cs.length, n), count = 0, found = [];
+      var base = head.length;
+      while (true){
+        var w = m.digest();
+        if (w[0] === ta && hexOf(w).slice(0, T.length) === T){
+          var cand = job.head; for (var q = 0; q < n; q++) cand += cs[idx[q]]; cand += job.tail || '';
+          found.push(cand);
+          if (found.length >= 3) break;
+        }
+        count++;
+        if ((count & 0x3ffff) === 0 && onTick) onTick(count, total);
+        var pos = n - 1;
+        while (pos >= 0){
+          idx[pos]++;
+          if (idx[pos] < cs.length){ m.u8[base + pos] = csb[idx[pos]]; break; }
+          idx[pos] = 0; m.u8[base + pos] = csb[0]; pos--;
+        }
+        if (pos < 0) break;
+      }
+      return {found: found, count: count, total: total};
+    }
+
+    if (typeof self !== 'undefined' && typeof window === 'undefined'){
+      self.onmessage = function(e){
+        var jobs = e.data.jobs, key = e.data.key, done = 0, all = 0;
+        jobs.forEach(function(j){ all += Math.pow((j.cs || '').length, j.n); });
+        for (var i = 0; i < jobs.length; i++){
+          var r = search(jobs[i], key, function(c){ self.postMessage({type:'tick', done: done + c, all: all}); });
+          done += r.count;
+          if (r.found.length){ self.postMessage({type:'done', found: r.found, tried: done}); return; }
+        }
+        self.postMessage({type:'done', found: [], tried: done});
+      };
+    }
+    return {hx: hx, search: search};
+  }
+
+  var C = core();
+  var workerURL = null;
+  function newWorker(){
+    if (!workerURL) workerURL = URL.createObjectURL(new Blob(['(' + core.toString() + ')()'], {type:'text/javascript'}));
+    return new Worker(workerURL);
+  }
+
+  var KEY_RE = /^[A-Za-z0-9_-]*$/;
+  function fwd(b, key){
+    var s = String(b).normalize('NFC').trim();
+    var p = s.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 13);
+    return p + C.hx(key + ':' + s).slice(0, 25 - p.length).toUpperCase();
+  }
+
+  var UP = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', DG = '0123456789', HEXL = '0123456789abcdef';
+  var CONS = 'BCDFGHJKLMNPQRSTVWXYZ', ALNUM_UP = CONS + 'AEIOU' + DG;
+  function plan(a){
+    var jobs = [], P = a.slice(0, 13), H = a.slice(13), m;
+    function add(head, cs, n, target){ jobs.push({head: head, cs: cs, n: n, tail: '', target: target || H}); }
+    if ((m = /^T(\d{6})(AG[A-Z0-9]{4})$/.exec(P))){
+      add('T-' + m[1] + '-' + m[2], ALNUM_UP, 1);
+      add('T-' + m[1] + '-' + m[2], ALNUM_UP, 2);
+    }
+    for (var k = 12; k >= 8; k--){
+      if (/^[0-9A-F]+$/.test(a.slice(k))){
+        add(a.slice(0, k), '', 0, a.slice(k));
+        if (/[A-Z]/.test(a.slice(0, k))) add(a.slice(0, k).toLowerCase(), '', 0, a.slice(k));
+      }
+    }
+    add(P, '', 0);
+    if (/[A-Z]/.test(P)) add(P.toLowerCase(), '', 0);
+    add(P, UP + DG, 1);
+    add(P, UP + DG, 2);
+    if ((m = /^PAY(\d{8})([0-9A-F]{2})$/.exec(P))) add('PAY-' + m[1] + '-' + m[2].toLowerCase(), HEXL, 6);
+    if (/^SELF\d{9}$/.test(P)) add(P, DG, 7);
+    add(P, UP + DG, 3);
+    return jobs;
+  }
+
+  var T = {
+    en: {searching: 'Working', found: 'Done', notFound: 'No match', invalid: 'Check input', 
+      noMatch: 'No match. Check A and Key.', multi: 'More than one match.', badA: 'A must be 25 letters or digits.', badKey: 'Key may only contain letters, digits, "_" and "-".', needKey: 'Enter the key too.', copied: 'Copied'},
+    id: {searching: 'Memproses', found: 'Selesai', notFound: 'Tidak cocok', invalid: 'Periksa input', 
+      noMatch: 'Tidak ada yang cocok. Periksa A dan Key.', multi: 'Ada lebih dari satu yang cocok.', badA: 'A harus 25 huruf atau angka.', badKey: 'Key hanya boleh berisi huruf, angka, "_" dan "-".', needKey: 'Isi juga key.', copied: 'Tersalin'}
+  };
+  function t(k){ return T[document.documentElement.lang === 'id' ? 'id' : 'en'][k]; }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  var INVIS = /[\s​-‍⁠﻿­]/g;
+
+  var worker = null, timer = null, last = null;
+  function stop(){ if (worker){ worker.terminate(); worker = null; } $('xProg').hidden = true; }
+  function status(cls, text){ var s = $('xStatus'); s.hidden = !text; s.className = 'status ' + cls; s.textContent = text || ''; }
+  function blank(note){ $('xB').textContent = '—'; $('xB').className = 'muted'; $('xCopy').hidden = true; $('xNote').textContent = note || ''; $('xAlts').textContent = ''; }
+
+  function run(){
+    stop();
+    var a = $('xA').value.replace(INVIS, '').toUpperCase(), key = $('xK').value.replace(INVIS, '');
+    if (!a && !key){ $('xOut').hidden = true; status('', ''); last = null; return; }
+    var err = null;
+    if (!/^[A-Z0-9]{25}$/.test(a) || !/^[0-9A-F]{12}$/.test(a.slice(13))) err = 'badA';
+    else if (!KEY_RE.test(key)) err = 'badKey';
+    else if (!key) err = 'needKey';
+    $('xOut').hidden = false;
+    if (err){ blank(t(err)); status('err', t('invalid')); last = {state: 'err', err: err}; return; }
+
+    var jobs = plan(a), started = performance.now();
+    last = {state: 'run'};
+    blank('');
+    status('warn', t('searching') + '…');
+    var bar = $('xProg'); bar.hidden = false; bar.firstChild.style.width = '0%';
+    var mine = worker = newWorker();
+    mine.onmessage = function(e){
+      if (mine !== worker) return;
+      var d = e.data;
+      if (d.type === 'tick'){ var pct = Math.min(99, Math.floor(d.done / d.all * 100)); bar.firstChild.style.width = pct + '%'; status('warn', t('searching') + '… ' + pct + '%'); return; }
+      stop();
+      last = {state: 'done', found: d.found, tried: d.tried, ms: Math.round(performance.now() - started)};
+      show();
+    };
+    mine.onerror = function(){ stop(); status('err', 'Error'); };
+    mine.postMessage({jobs: jobs, key: key});
+  }
+
+  function show(){
+    if (!last) return;
+    if (last.state === 'err'){ blank(t(last.err)); status('err', t('invalid')); return; }
+    if (last.state !== 'done') return;
+    var L = last;
+    if (L.found.length){
+      $('xB').textContent = L.found[0]; $('xB').className = ''; $('xCopy').hidden = false;
+      $('xNote').textContent = L.found.length > 1 ? t('multi') : '';
+      $('xAlts').textContent = L.found.length > 1 ? L.found.slice(1).join(', ') : '';
+      status(L.found.length > 1 ? 'warn' : 'ok', t('found'));
+    } else {
+      blank(t('noMatch'));
+      status('err', t('notFound'));
+    }
+  }
+
+  function later(){ clearTimeout(timer); timer = setTimeout(run, 250); }
+  $('xA').addEventListener('input', later);
+  $('xK').addEventListener('input', later);
+  $('xClear').addEventListener('click', function(){ $('xA').value = ''; $('xK').value = ''; run(); $('xA').focus(); });
+  $('xCopy').addEventListener('click', function(){
+    var btn = this, txt = $('xB').textContent;
+    navigator.clipboard.writeText(txt).then(function(){ var o = btn.textContent; btn.textContent = t('copied'); setTimeout(function(){ btn.textContent = o; }, 1400); }, function(){});
+  });
+  document.addEventListener('langchange', function(){ show(); if (last && last.state === 'run') status('warn', t('searching') + '…'); });
+
+  // ---------- Tabs ----------
+  var tabs = document.querySelectorAll('.tabs [role="tab"]');
+  function select(name, push){
+    if (name !== 'iso' && name !== 'ab') name = 'iso';
+    tabs.forEach(function(b){ var on = b.getAttribute('data-tab') === name; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; $('tab-' + b.getAttribute('data-tab')).hidden = !on; });
+    document.title = name === 'ab' ? 'A → B' : 'ISO 8583 Decoder';
+    if (push) history.replaceState(null, '', name === 'iso' ? location.pathname + location.search : '#' + name);
+  }
+  tabs.forEach(function(b, i){
+    b.addEventListener('click', function(){ select(b.getAttribute('data-tab'), true); });
+    b.addEventListener('keydown', function(e){
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      var nx = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      nx.focus(); select(nx.getAttribute('data-tab'), true);
+    });
+  });
+  window.addEventListener('hashchange', function(){ select(location.hash.slice(1), false); });
+  select(location.hash.slice(1), false);
+
+  window.__ab = {fwd: fwd, rev: function(a, key){ var jobs = plan(a); for (var i = 0; i < jobs.length; i++){ var r = C.search(jobs[i], key); if (r.found.length) return r.found; } return []; }};
 })();
 </script>
 </body>
