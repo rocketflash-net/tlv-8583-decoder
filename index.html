@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISO 8583 Decoder</title>
+<meta name="description" content="Paste an ISO 8583 message (QRIS switching) and get every data element decoded into a clean JSON object. Runs entirely in your browser.">
+<meta name="author" content="Daniel Aldo Pratama">
+<link rel="canonical" href="https://rocketflash-net.github.io/iso8583-decoder/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ISO 8583 Decoder">
+<meta property="og:description" content="Paste an ISO 8583 message and get every data element decoded into JSON.">
+<meta property="og:url" content="https://rocketflash-net.github.io/iso8583-decoder/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232b45d4'/%3E%3Cpath d='M7 10h18M7 16h12M7 22h15' stroke='%23fff' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6f7fb; --surface:#ffffff; --ink:#151a28; --slate:#5a6275; --line:#e1e4ee;
+  --cobalt:#2b45d4; --cobalt-wash:#eaedfc;
+  --code-bg:#151a28; --code-ink:#d9def0; --code-key:#9db0ff; --code-num:#ffc58a; --code-dim:#6d7591; --code-sub:#9be3b8;
+  --ok:#1f9d63; --ok-wash:#e3f6ec; --warn:#b26a00; --warn-wash:#fff3dc; --err:#c8323c; --err-wash:#fde8ea;
+  --max:72rem; --gutter:clamp(1rem,4vw,2.5rem);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d1220; --surface:#131a2c; --ink:#e7eaf3; --slate:#98a0b6; --line:#232b42;
+    --cobalt:#8fa2ff; --cobalt-wash:#1a2246; --code-bg:#070a14;
+    --ok:#3ccf8e; --ok-wash:#0f2a20; --warn:#ffb547; --warn-wash:#2c2210; --err:#ff6b74; --err-wash:#2e1418;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0d1220; --surface:#131a2c; --ink:#e7eaf3; --slate:#98a0b6; --line:#232b42;
+  --cobalt:#8fa2ff; --cobalt-wash:#1a2246; --code-bg:#070a14;
+  --ok:#3ccf8e; --ok-wash:#0f2a20; --warn:#ffb547; --warn-wash:#2c2210; --err:#ff6b74; --err-wash:#2e1418;
+}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font:400 1rem/1.6 "Schibsted Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--cobalt);text-underline-offset:3px}
+a:focus-visible,button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--gutter)}
+
+.bar{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.25rem 0;font-size:.95rem}
+.bar .home{color:var(--ink);text-decoration:none;font-weight:600}
+.bar .right{display:flex;gap:.6rem;align-items:center}
+.bar .right a{color:var(--slate);text-decoration:none;margin-right:.6rem}
+.bar .right a:hover{color:var(--ink)}
+.toggle{background:var(--surface);border:1px solid var(--line);color:var(--ink);height:2.1rem;min-width:2.1rem;border-radius:999px;cursor:pointer;font:inherit;font-size:.85rem}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
+.lang button{background:none;border:0;color:var(--slate);font:600 .8rem/1 "Schibsted Grotesk",sans-serif;padding:.6rem .7rem;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--cobalt);color:#fff}
+:root[data-theme="dark"] .lang button[aria-pressed="true"]{color:#0d1220}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .lang button[aria-pressed="true"]{color:#0d1220}}
+
+header.top{padding:clamp(1.5rem,5vw,3.5rem) 0 clamp(1.5rem,4vw,2.25rem)}
+h1{font-size:clamp(2.2rem,5.5vw,3.6rem);line-height:1.02;letter-spacing:-.035em;font-weight:800}
+h1 span{color:var(--cobalt)}
+.lede{color:var(--slate);margin-top:.9rem;max-width:42rem;font-size:1.06rem}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.input{padding:1rem}
+.input label.main{display:block;font-weight:600;font-size:.92rem;margin:0 0 .5rem .2rem}
+textarea{width:100%;min-height:7.5rem;resize:vertical;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);font:400 .9rem/1.6 "IBM Plex Mono",ui-monospace,monospace;padding:.8rem .9rem;word-break:break-all}
+textarea:focus{border-color:var(--cobalt)}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:.75rem}
+.btn{display:inline-flex;align-items:center;padding:.55rem 1rem;border-radius:8px;font:600 .9rem/1.2 "Schibsted Grotesk",sans-serif;text-decoration:none;border:1px solid var(--line);color:var(--ink);background:var(--surface);cursor:pointer}
+.btn:hover{border-color:var(--cobalt)}
+.btn.solid{background:var(--cobalt);border-color:var(--cobalt);color:#fff}
+:root[data-theme="dark"] .btn.solid{color:#0d1220}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.solid{color:#0d1220}}
+.opt{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--slate);font-weight:500}
+.opt select,.opt input{font:500 .85rem/1.2 "Schibsted Grotesk",sans-serif;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.5rem .55rem}
+.opt input{width:5.2rem;font-family:"IBM Plex Mono",monospace}
+.status{margin-left:auto;display:inline-flex;align-items:center;gap:.45rem;font-weight:600;font-size:.9rem;padding:.4rem .8rem;border-radius:999px}
+.status::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:currentColor}
+.status.ok{color:var(--ok);background:var(--ok-wash)}
+.status.err{color:var(--err);background:var(--err-wash)}
+.status.warn{color:var(--warn);background:var(--warn-wash)}
+.status[hidden]{display:none}
+
+#out[hidden]{display:none}
+.summary{display:flex;flex-wrap:wrap;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:1.25rem}
+.summary div{flex:1 1 10.5rem;background:var(--surface);padding:.85rem 1rem}
+.summary dt{color:var(--slate);font-size:.8rem;font-weight:500}
+.summary dd{font-weight:700;font-size:1.05rem;margin-top:.1rem;overflow-wrap:anywhere}
+.summary dd small{display:block;font-weight:500;font-size:.8rem;color:var(--slate)}
+
+.raw{background:var(--code-bg);color:var(--code-ink);border-radius:14px;margin-top:1.25rem;overflow:hidden}
+.raw-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 1rem;padding:.75rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.08);font-size:.8rem;color:var(--code-dim)}
+.legend{display:flex;flex-wrap:wrap;gap:.4rem 1rem}
+.legend i{display:inline-block;width:.6rem;height:.6rem;border-radius:2px;margin-right:.35rem;vertical-align:-.02rem}
+.raw pre{padding:1rem 1.1rem 1.15rem;white-space:pre-wrap;word-break:break-all;font:400 .92rem/1.85 "IBM Plex Mono",ui-monospace,monospace}
+.raw .t{color:var(--code-key);font-weight:500}
+.raw .l{color:var(--code-num)}
+.raw .v1{color:var(--code-sub)}
+.raw .seg{border-radius:3px;transition:background .12s;cursor:pointer}
+.raw .seg.hl{background:rgba(157,176,255,.2)}
+.raw .bad{color:#ff8a92;text-decoration:underline wavy;text-underline-offset:4px}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 19rem;gap:1.25rem;margin-top:1.25rem;align-items:start}
+h2{font-size:1.15rem;font-weight:700;letter-spacing:-.01em;padding:1rem 1.1rem .85rem;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem 1rem}
+h2 .tools{display:flex;gap:.4rem}
+h2 .btn{padding:.35rem .7rem;font-size:.82rem}
+h2 .btn[aria-pressed="true"]{border-color:var(--cobalt);color:var(--cobalt)}
+
+.json{background:var(--code-bg);color:var(--code-ink);margin:0;border-radius:0 0 13px 13px;padding:1rem 1.1rem 1.15rem;font:400 .88rem/1.75 "IBM Plex Mono",ui-monospace,monospace;white-space:pre-wrap;word-break:break-all;max-height:36rem;overflow:auto}
+.json .k{color:var(--code-key)}
+.json .s{color:var(--code-sub)}
+.json .n{color:var(--code-num)}
+.json .p{color:var(--code-dim)}
+
+.fields{margin-top:1.25rem}
+.rows{list-style:none}
+.row,.thead{display:grid;grid-template-columns:4.8rem minmax(0,1fr) minmax(0,1.2fr) 2.6rem;gap:.35rem 1rem;padding:.8rem 1.1rem;align-items:baseline}
+.row{border-bottom:1px solid var(--line);transition:background .12s}
+.row:last-child{border-bottom:0}
+.row.hl{background:var(--cobalt-wash)}
+.row .tag{font:500 .9rem "IBM Plex Mono",monospace;color:var(--cobalt)}
+.row .name{font-weight:600;font-size:.95rem;line-height:1.35}
+.row .fmt{display:block;color:var(--slate);font:400 .78rem/1.4 "IBM Plex Mono",monospace;margin-top:.2rem}
+.row .key{display:block;color:var(--slate);font:400 .78rem/1.4 "IBM Plex Mono",monospace}
+.row .meaning{display:block;margin-top:.35rem;font:500 .86rem/1.45 "Schibsted Grotesk",sans-serif;color:var(--ink)}
+.row .meaning::before{content:"→ ";color:var(--cobalt)}
+.row .val{font:400 .88rem/1.5 "IBM Plex Mono",monospace;overflow-wrap:anywhere;white-space:pre-wrap}
+.row .len{font:400 .82rem "IBM Plex Mono",monospace;color:var(--slate);text-align:right}
+.row.child{padding-left:calc(1.1rem + var(--d,1) * 1rem);background:color-mix(in srgb,var(--paper) 55%,transparent)}
+.row.child.hl{background:var(--cobalt-wash)}
+.row.child .tag{color:var(--slate)}
+.row.flag .val{color:var(--err)}
+.thead{border-bottom:1px solid var(--line);padding-top:.55rem;padding-bottom:.55rem;font-size:.78rem;color:var(--slate);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.thead span:last-child{text-align:right}
+
+.checks{list-style:none;padding:.4rem 0}
+.checks li{display:grid;grid-template-columns:1.2rem 1fr;gap:.5rem;padding:.5rem 1.1rem;font-size:.9rem;line-height:1.45;overflow-wrap:anywhere}
+.checks li::before{font-weight:700;text-align:center}
+.checks .ok::before{content:"✓";color:var(--ok)}
+.checks .warn::before{content:"!";color:var(--warn)}
+.checks .err::before{content:"✕";color:var(--err)}
+.checks .info::before{content:"i";color:var(--cobalt)}
+.about{padding:1rem 1.1rem;color:var(--slate);font-size:.86rem;line-height:1.55;border-top:1px solid var(--line)}
+.about p+p{margin-top:.6rem}
+
+.empty{margin-top:1.25rem;padding:2rem 1.25rem;text-align:center;color:var(--slate);border:1px dashed var(--line);border-radius:14px}
+footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
+
+@media (max-width:900px){
+  .grid2{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  .bar .right a{display:none}
+  .status{margin-left:0;width:100%;justify-content:center}
+  .thead{display:none}
+  .row{grid-template-columns:3.8rem minmax(0,1fr) auto;padding:.8rem .9rem}
+  .row .val{grid-column:2 / 4}
+  .row .len{grid-row:1;grid-column:3}
+  .row.child{padding-left:calc(.9rem + var(--d,1) * .5rem)}
+}
+@media (prefers-reduced-motion:reduce){.row,.raw .seg{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <a class="home" href="https://rocketflash-net.github.io/it/">Daniel Aldo Pratama</a>
+    <div class="right">
+      <a href="https://github.com/rocketflash-net/iso8583-decoder" target="_blank" rel="noopener">GitHub</a>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="id" aria-pressed="false">ID</button>
+      </div>
+      <button class="toggle" id="theme" type="button" aria-label="Switch light or dark theme">◐</button>
+    </div>
+  </div>
+
+  <header class="top">
+    <h1>ISO <span>8583</span> Decoder</h1>
+    <p class="lede" data-t="lede"></p>
+  </header>
+
+  <div class="card input">
+    <label class="main" for="q" data-t="inputLabel"></label>
+    <textarea id="q" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    <div class="actions">
+      <button class="btn solid" type="button" id="sample" data-t="sample"></button>
+      <button class="btn" type="button" id="clear" data-t="clear"></button>
+      <label class="opt"><span data-t="profile"></span>
+        <select id="profile">
+          <option value="qris" data-t="pQris"></option>
+          <option value="iso" data-t="pIso"></option>
+        </select>
+      </label>
+      <label class="opt"><span data-t="year"></span><input id="year" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+      <span class="status" id="status" hidden></span>
+    </div>
+  </div>
+
+  <div class="empty" id="empty" data-t="empty"></div>
+
+  <div id="out" hidden>
+    <dl class="summary" id="summary"></dl>
+
+    <div class="raw">
+      <div class="raw-head">
+        <span data-t="raw"></span>
+        <span class="legend"><span><i style="background:var(--code-key)"></i><span data-t="lgHead"></span></span><span><i style="background:var(--code-num)"></i><span data-t="lgLen"></span></span><span><i style="background:var(--code-ink)"></i><i style="background:var(--code-sub)"></i><span data-t="lgVal"></span></span></span>
+      </div>
+      <pre id="raw"></pre>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2><span>JSON</span><span class="tools"><button class="btn" type="button" id="fmtMin" aria-pressed="true" data-t="minified"></button><button class="btn" type="button" id="fmtPretty" aria-pressed="false" data-t="pretty"></button><button class="btn" type="button" id="copy" data-t="copyJson"></button></span></h2>
+        <pre class="json" id="json"></pre>
+      </div>
+      <aside class="card side">
+        <h2 data-t="checks"></h2>
+        <ul class="checks" id="checks"></ul>
+        <div class="about"><p data-t="privacy"></p><p data-t="ref"></p></div>
+      </aside>
+    </div>
+
+    <div class="card fields">
+      <h2 data-t="decoded"></h2>
+      <div class="thead"><span>DE</span><span data-t="colField"></span><span data-t="colValue"></span><span data-t="colLen"></span></div>
+      <ul class="rows" id="rows"></ul>
+    </div>
+  </div>
+</div>
+
+<footer><div class="wrap"><span data-t="by"></span> <a href="https://rocketflash-net.github.io/it/">Daniel Aldo Pratama</a> · <a href="https://github.com/rocketflash-net/iso8583-decoder" target="_blank" rel="noopener" data-t="source"></a></div></footer>
+
+<script>
+(function(){
+  'use strict';
+
+  // ---------- i18n ----------
+  var UI = {
+    en: {
+      lede: 'Paste an ISO 8583 message as text (MTI, hex bitmap, then the data elements) and get every field decoded into a JSON object, with the QRIS switching sub-fields in DE43, DE48 and DE57 split out. Everything runs in your browser.',
+      inputLabel: 'ISO 8583 message', placeholder: '0200F23AC401...', sample: 'Try a sample', clear: 'Clear',
+      profile: 'Profile', pQris: 'QRIS switching (ID)', pIso: 'ISO 8583:1987', year: 'Year', yearAuto: 'auto',
+      empty: 'Paste an ISO 8583 message above, or try the sample, to see it decoded.',
+      raw: 'Message', lgHead: 'MTI / bitmap', lgLen: 'Length prefix', lgVal: 'Values',
+      minified: 'Minified', pretty: 'Pretty', copyJson: 'Copy', copied: 'Copied',
+      decoded: 'Data elements', colField: 'Field', colValue: 'Value', colLen: 'Len',
+      checks: 'Checks', okStatus: 'Decoded', warnStatus: 'Decoded, with warnings', errStatus: 'Could not fully decode',
+      privacy: 'The message never leaves this page. Nothing is sent to a server or stored.',
+      ref: 'Field formats follow ISO 8583:1987 in ASCII with a hex bitmap. The QRIS profile uses the Indonesian switching layout (DE41 ans16, DE43 name/city/country, TLV in DE48 and DE57). For learning and debugging, not an official validator.',
+      by: 'Built by', source: 'Source on GitHub',
+      sMsg: 'Message', sAmount: 'Amount', sMerchant: 'Merchant', sRrn: 'RRN', sRc: 'Response', sFields: 'Fields'
+    },
+    id: {
+      lede: 'Tempel pesan ISO 8583 dalam bentuk teks (MTI, bitmap hex, lalu data element) dan setiap field akan di-decode menjadi objek JSON, termasuk sub-field QRIS switching di DE43, DE48 dan DE57. Semua diproses di browser Anda.',
+      inputLabel: 'Pesan ISO 8583', placeholder: '0200F23AC401...', sample: 'Coba contoh', clear: 'Hapus',
+      profile: 'Profil', pQris: 'QRIS switching (ID)', pIso: 'ISO 8583:1987', year: 'Tahun', yearAuto: 'otomatis',
+      empty: 'Tempel pesan ISO 8583 di atas, atau coba contoh, untuk melihat hasil decode.',
+      raw: 'Pesan', lgHead: 'MTI / bitmap', lgLen: 'Prefix panjang', lgVal: 'Nilai',
+      minified: 'Ringkas', pretty: 'Rapi', copyJson: 'Salin', copied: 'Tersalin',
+      decoded: 'Data element', colField: 'Field', colValue: 'Nilai', colLen: 'Pjg',
+      checks: 'Pemeriksaan', okStatus: 'Berhasil di-decode', warnStatus: 'Berhasil, ada peringatan', errStatus: 'Tidak bisa di-decode penuh',
+      privacy: 'Pesan tidak pernah keluar dari halaman ini. Tidak ada yang dikirim ke server atau disimpan.',
+      ref: 'Format field mengikuti ISO 8583:1987 dalam ASCII dengan bitmap hex. Profil QRIS memakai layout switching Indonesia (DE41 ans16, DE43 nama/kota/negara, TLV di DE48 dan DE57). Untuk belajar dan debugging, bukan validator resmi.',
+      by: 'Dibuat oleh', source: 'Kode sumber di GitHub',
+      sMsg: 'Pesan', sAmount: 'Nominal', sMerchant: 'Merchant', sRrn: 'RRN', sRc: 'Respons', sFields: 'Jumlah field'
+    }
+  };
+  var lang = 'en';
+  function L(en, id){ return {en: en, id: id || en}; }
+  function tr(x){ return x == null ? '' : (typeof x === 'string' ? x : x[lang]); }
+  function u(k){ return UI[lang][k]; }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  // ---------- Field definitions (ISO 8583:1987, ASCII) ----------
+  // [DE, format, json key, english name, indonesian name, decoder]
+  var DEF = [
+    [2,'LLn19','pan','Primary account number (PAN)','Nomor rekening utama (PAN)'],
+    [3,'n6','processingCode','Processing code','Kode pemrosesan','pc'],
+    [4,'n12','transactionAmount','Transaction amount','Nominal transaksi','amount'],
+    [5,'n12','settlementAmount','Settlement amount','Nominal settlement','amount'],
+    [6,'n12','cardholderBillingAmount','Cardholder billing amount','Nominal tagihan pemegang kartu','amount'],
+    [7,'n10','transmissionDateTime','Transmission date and time (MMDDhhmmss)','Tanggal dan jam transmisi (MMDDhhmmss)','mdhms'],
+    [8,'n8','cardholderBillingFee','Cardholder billing fee','Biaya tagihan pemegang kartu','amount'],
+    [9,'n8','settlementConversionRate','Settlement conversion rate','Kurs konversi settlement'],
+    [10,'n8','cardholderBillingConversionRate','Cardholder billing conversion rate','Kurs konversi tagihan'],
+    [11,'n6','systemTraceAuditNumber','System trace audit number (STAN)','Nomor jejak audit sistem (STAN)'],
+    [12,'n6','localTransactionTime','Local transaction time (hhmmss)','Jam transaksi lokal (hhmmss)','time'],
+    [13,'n4','localTransactionDate','Local transaction date (MMDD)','Tanggal transaksi lokal (MMDD)','md'],
+    [14,'n4','expirationDate','Expiration date (YYMM)','Tanggal kedaluwarsa (YYMM)'],
+    [15,'n4','settlementDate','Settlement date (MMDD)','Tanggal settlement (MMDD)','md'],
+    [16,'n4','conversionDate','Conversion date (MMDD)','Tanggal konversi (MMDD)','md'],
+    [17,'n4','captureDate','Capture date (MMDD)','Tanggal capture (MMDD)','md'],
+    [18,'n4','merchantType','Merchant type (MCC)','Jenis merchant (MCC)','mcc'],
+    [19,'n3','acquiringCountryCode','Acquiring institution country code','Kode negara acquirer'],
+    [20,'n3','panCountryCode','PAN extended country code','Kode negara PAN'],
+    [21,'n3','forwardingCountryCode','Forwarding institution country code','Kode negara institusi penerus'],
+    [22,'n3','posEntryMode','POS entry mode','Mode entri POS'],
+    [23,'n3','cardSequenceNumber','Card sequence number','Nomor urut kartu'],
+    [24,'n3','networkInternationalId','Network international ID (NII)','ID jaringan internasional (NII)'],
+    [25,'n2','posConditionCode','POS condition code','Kode kondisi POS'],
+    [26,'n2','posPinCaptureCode','POS PIN capture code','Kode penangkapan PIN POS'],
+    [27,'n1','authIdResponseLength','Authorization ID response length','Panjang respons ID otorisasi'],
+    [28,'x+n8','fee','Transaction fee amount','Biaya transaksi','fee'],
+    [29,'x+n8','settlementFee','Settlement fee amount','Biaya settlement','fee'],
+    [30,'x+n8','processingFee','Transaction processing fee amount','Biaya pemrosesan transaksi','fee'],
+    [31,'x+n8','settlementProcessingFee','Settlement processing fee amount','Biaya pemrosesan settlement','fee'],
+    [32,'LLn11','acquirerId','Acquiring institution ID','ID institusi acquirer'],
+    [33,'LLn11','forwardingId','Forwarding institution ID','ID institusi penerus'],
+    [34,'LLns28','extendedPan','Extended PAN','PAN diperluas'],
+    [35,'LLz37','track2Data','Track 2 data','Data track 2'],
+    [36,'LLLn104','track3Data','Track 3 data','Data track 3'],
+    [37,'an12','rrn','Retrieval reference number (RRN)','Nomor referensi (RRN)'],
+    [38,'an6','approvalCode','Authorization ID response (approval code)','Kode otorisasi (approval code)'],
+    [39,'an2','responseCode','Response code','Kode respons','rc'],
+    [40,'an3','serviceRestrictionCode','Service restriction code','Kode batasan layanan'],
+    [41,'ans8','terminalId','Card acceptor terminal ID','ID terminal'],
+    [42,'ans15','merchantId','Card acceptor ID (merchant ID)','ID merchant'],
+    [43,'ans40','cardAcceptorNameLocation','Card acceptor name and location','Nama dan lokasi merchant'],
+    [44,'LLans25','additionalResponseData','Additional response data','Data respons tambahan'],
+    [45,'LLans76','track1Data','Track 1 data','Data track 1'],
+    [46,'LLLans999','additionalDataIso','Additional data (ISO)','Data tambahan (ISO)'],
+    [47,'LLLans999','additionalDataNational','Additional data (national)','Data tambahan (nasional)'],
+    [48,'LLLans999','additionalDataPrivate','Additional data (private)','Data tambahan (privat)'],
+    [49,'n3','currencyCode','Transaction currency code','Kode mata uang transaksi','cur'],
+    [50,'n3','settlementCurrencyCode','Settlement currency code','Kode mata uang settlement','cur'],
+    [51,'n3','billingCurrencyCode','Cardholder billing currency code','Kode mata uang tagihan','cur'],
+    [52,'b64','pinData','PIN data','Data PIN'],
+    [53,'n16','securityControlInfo','Security related control information','Informasi kontrol keamanan'],
+    [54,'LLLans120','additionalAmounts','Additional amounts','Nominal tambahan'],
+    [55,'LLLans999','iccData','ICC data (EMV)','Data ICC (EMV)'],
+    [56,'LLLans999','de56','Reserved (ISO)','Cadangan (ISO)'],
+    [57,'LLLans999','additionalData57','Reserved (national)','Cadangan (nasional)'],
+    [58,'LLLans999','de58','Reserved (national)','Cadangan (nasional)'],
+    [59,'LLLans999','de59','Reserved (national)','Cadangan (nasional)'],
+    [60,'LLLans999','de60','Reserved (national)','Cadangan (nasional)'],
+    [61,'LLLans999','de61','Reserved (private)','Cadangan (privat)'],
+    [62,'LLLans999','de62','Reserved (private)','Cadangan (privat)'],
+    [63,'LLLans999','de63','Reserved (private)','Cadangan (privat)'],
+    [64,'b64','mac','Message authentication code (MAC)','Kode autentikasi pesan (MAC)'],
+    [66,'n1','settlementCode','Settlement code','Kode settlement'],
+    [67,'n2','extendedPaymentCode','Extended payment code','Kode pembayaran diperluas'],
+    [68,'n3','receivingCountryCode','Receiving institution country code','Kode negara institusi penerima'],
+    [69,'n3','settlementCountryCode','Settlement institution country code','Kode negara institusi settlement'],
+    [70,'n3','networkManagementCode','Network management information code','Kode manajemen jaringan','nmc'],
+    [71,'n4','messageNumber','Message number','Nomor pesan'],
+    [72,'n4','lastMessageNumber','Last message number','Nomor pesan terakhir'],
+    [73,'n6','actionDate','Action date (YYMMDD)','Tanggal tindakan (YYMMDD)'],
+    [74,'n10','creditsNumber','Number of credits','Jumlah kredit'],
+    [75,'n10','creditsReversalNumber','Number of credit reversals','Jumlah reversal kredit'],
+    [76,'n10','debitsNumber','Number of debits','Jumlah debit'],
+    [77,'n10','debitsReversalNumber','Number of debit reversals','Jumlah reversal debit'],
+    [78,'n10','transferNumber','Number of transfers','Jumlah transfer'],
+    [79,'n10','transferReversalNumber','Number of transfer reversals','Jumlah reversal transfer'],
+    [80,'n10','inquiriesNumber','Number of inquiries','Jumlah inquiry'],
+    [81,'n10','authorizationsNumber','Number of authorizations','Jumlah otorisasi'],
+    [82,'n12','creditsProcessingFee','Credits processing fee amount','Biaya pemrosesan kredit','amount'],
+    [83,'n12','creditsTransactionFee','Credits transaction fee amount','Biaya transaksi kredit','amount'],
+    [84,'n12','debitsProcessingFee','Debits processing fee amount','Biaya pemrosesan debit','amount'],
+    [85,'n12','debitsTransactionFee','Debits transaction fee amount','Biaya transaksi debit','amount'],
+    [86,'n16','creditsAmount','Total credits amount','Total nominal kredit','amount'],
+    [87,'n16','creditsReversalAmount','Total credit reversals amount','Total nominal reversal kredit','amount'],
+    [88,'n16','debitsAmount','Total debits amount','Total nominal debit','amount'],
+    [89,'n16','debitsReversalAmount','Total debit reversals amount','Total nominal reversal debit','amount'],
+    [90,'n42','originalDataElements','Original data elements','Data elemen asli','de90'],
+    [91,'an1','fileUpdateCode','File update code','Kode pembaruan file'],
+    [92,'an2','fileSecurityCode','File security code','Kode keamanan file'],
+    [93,'an5','responseIndicator','Response indicator','Indikator respons'],
+    [94,'an7','serviceIndicator','Service indicator','Indikator layanan'],
+    [95,'an42','replacementAmounts','Replacement amounts','Nominal pengganti'],
+    [96,'b64','messageSecurityCode','Message security code','Kode keamanan pesan'],
+    [97,'x+n16','netSettlement','Net settlement amount','Nominal settlement bersih','fee'],
+    [98,'ans25','payee','Payee','Penerima pembayaran'],
+    [99,'LLn11','settlementInstitutionId','Settlement institution ID','ID institusi settlement'],
+    [100,'LLn11','receivingInstitutionId','Receiving institution ID','ID institusi penerima'],
+    [101,'LLans17','fileName','File name','Nama file'],
+    [102,'LLans28','accountId1','Account ID 1','ID rekening 1'],
+    [103,'LLans28','accountId2','Account ID 2','ID rekening 2'],
+    [104,'LLLans100','transactionDescription','Transaction description','Deskripsi transaksi'],
+    [128,'b64','mac2','Message authentication code (MAC)','Kode autentikasi pesan (MAC)']
+  ];
+  var BASE = {};
+  DEF.forEach(function(d){ BASE[d[0]] = {de:d[0], fmt:d[1], key:d[2], name:L(d[3], d[4]), kind:d[5] || null}; });
+  BASE[65] = {de:65, fmt:'an1', key:'tertiaryBitmap', name:L('Bitmap, extended','Bitmap, diperluas'), kind:null};
+  for (var r = 105; r <= 127; r++) BASE[r] = {de:r, fmt:'LLLans999', key:'de' + r, name: r < 112 ? L('Reserved (ISO)','Cadangan (ISO)') : r < 120 ? L('Reserved (national)','Cadangan (nasional)') : L('Reserved (private)','Cadangan (privat)'), kind:null};
+
+  // QRIS switching profile (Indonesian domestic switches)
+  var QRIS = {
+    41: {fmt:'ans16'},
+    43: {kind:'de43'},
+    48: {kind:'tlv48'},
+    57: {kind:'tlv57', name:L('Additional data (QRIS)','Data tambahan (QRIS)')},
+    100: {key:'issuerId', name:L('Receiving institution ID (issuer)','ID institusi penerima (issuer)'), w:32.5},
+    102: {key:'customerPan', name:L('Account ID 1 (customer PAN)','ID rekening 1 (PAN pelanggan)')}
+  };
+  function spec(de, profile){
+    var b = BASE[de]; if (!b) return null;
+    var o = profile === 'qris' ? QRIS[de] : null;
+    var s = {}; for (var k in b) s[k] = b[k];
+    if (o) for (var k2 in o) s[k2] = o[k2];
+    var m = /^(LLL|LL)?(x\+n|ans|an|ns|n|z|b)(\d+)$/.exec(s.fmt);
+    s.var = m[1] ? m[1].length : 0; s.type = m[2]; s.max = +m[3];
+    s.len = s.type === 'b' ? s.max / 4 : s.type === 'x+n' ? s.max + 1 : s.max;
+    return s;
+  }
+  function fmtLabel(s){ return (s.var ? (s.var === 2 ? 'LLVAR ' : 'LLLVAR ') + s.type + '..' + s.max : s.type + ' ' + s.max) + (s.type === 'b' ? ' (hex)' : ''); }
+
+  // ---------- Reference data ----------
+  var CURRENCY = {'360':'IDR','702':'SGD','458':'MYR','764':'THB','392':'JPY','608':'PHP','840':'USD','156':'CNY','410':'KRW','978':'EUR'};
+  var MCC = {
+    '4111':'Commuter transport','4121':'Taxis and limousines','4789':'Transportation services','4814':'Telecommunication services','4829':'Money transfer','4900':'Utilities',
+    '5200':'Home supply stores','5251':'Hardware stores','5311':'Department stores','5331':'Variety stores','5399':'General merchandise',
+    '5411':'Grocery stores and supermarkets','5462':'Bakeries','5499':'Miscellaneous food stores','5541':'Service stations','5691':'Clothing stores','5732':'Electronics stores',
+    '5812':'Restaurants','5813':'Bars and lounges','5814':'Fast food restaurants','5912':'Drug stores and pharmacies','5942':'Book stores','5977':'Cosmetic stores','5999':'Miscellaneous retail',
+    '6011':'Cash disbursement (ATM)','6012':'Financial institutions','6540':'Stored value card load',
+    '7011':'Hotels and lodging','7210':'Laundry and cleaning services','7211':'Laundry services','7230':'Beauty and barber shops','7299':'Personal services','7399':'Business services',
+    '7832':'Cinemas','7997':'Clubs and recreation','8011':'Doctors','8062':'Hospitals','8099':'Health services',
+    '8211':'Schools','8220':'Colleges and universities','8398':'Charitable organisations','8661':'Religious organisations','9399':'Government services'
+  };
+  var RC = {
+    '00':L('Approved','Disetujui'), '01':L('Refer to issuer','Hubungi issuer'), '03':L('Invalid merchant','Merchant tidak valid'), '05':L('Do not honour','Ditolak'),
+    '06':L('Error','Error'), '12':L('Invalid transaction','Transaksi tidak valid'), '13':L('Invalid amount','Nominal tidak valid'), '14':L('Invalid card or account number','Nomor kartu/rekening tidak valid'),
+    '30':L('Format error','Format error'), '40':L('Function not supported','Fungsi tidak didukung'), '51':L('Insufficient funds','Saldo tidak cukup'), '54':L('Expired card','Kartu kedaluwarsa'),
+    '55':L('Incorrect PIN','PIN salah'), '57':L('Transaction not permitted to cardholder','Transaksi tidak diizinkan untuk pemegang kartu'), '58':L('Transaction not permitted to terminal','Transaksi tidak diizinkan untuk terminal'),
+    '61':L('Exceeds amount limit','Melebihi batas nominal'), '62':L('Restricted card','Kartu dibatasi'), '65':L('Exceeds frequency limit','Melebihi batas frekuensi'),
+    '68':L('Response received too late (timeout)','Respons terlambat (timeout)'), '91':L('Issuer or switch inoperative','Issuer atau switch tidak aktif'), '92':L('Destination cannot be found for routing','Tujuan routing tidak ditemukan'),
+    '94':L('Duplicate transmission','Transmisi ganda'), '96':L('System malfunction','Gangguan sistem')
+  };
+  var NMC = {'001':L('Sign on','Sign on'), '002':L('Sign off','Sign off'), '101':L('Key exchange','Pertukaran kunci'), '201':L('Cutover','Cutover'), '301':L('Echo test','Echo test')};
+  var CRITERIA = {UMI:L('Micro business','Usaha Mikro'), UKE:L('Small business','Usaha Kecil'), UME:L('Medium business','Usaha Menengah'), UBE:L('Large business','Usaha Besar'), URE:L('Regular business','Usaha Reguler')};
+  var T48 = {PI:['productIndicator', L('Product indicator','Indikator produk')], CD:['customerData', L('Customer data (payer name)','Data pelanggan (nama pembayar)'), true], MC:['merchantCriteria', L('Merchant criteria','Kriteria merchant')]};
+  var T57 = {'61':['postalCode', L('Postal code','Kode pos')], '62':['additionalField', L('Additional data field (QRIS tag 62)','Additional data field (tag QRIS 62)')]};
+  var T62 = {'01':L('Bill number','Nomor tagihan'),'02':L('Mobile number','Nomor ponsel'),'03':L('Store label','Label toko'),'04':L('Loyalty number','Nomor loyalitas'),'05':L('Reference label','Label referensi'),'06':L('Customer label','Label pelanggan'),'07':L('Terminal label','Label terminal'),'08':L('Purpose of transaction','Tujuan transaksi'),'09':L('Additional consumer data request','Permintaan data konsumen tambahan'),'10':L('Merchant tax ID','NPWP merchant'),'11':L('Merchant channel','Kanal merchant')};
+  var MTI_CLASS = {'1':L('Authorization','Otorisasi'),'2':L('Financial','Finansial'),'3':L('File action','Aksi file'),'4':L('Reversal','Reversal'),'5':L('Reconciliation','Rekonsiliasi'),'6':L('Administrative','Administratif'),'7':L('Fee collection','Penagihan biaya'),'8':L('Network management','Manajemen jaringan')};
+  var MTI_FUNC = {'0':L('request','request'),'1':L('response','response'),'2':L('advice','advice'),'3':L('advice response','advice response'),'4':L('notification','notifikasi')};
+  var MTI_ORIG = {'0':L('from acquirer','dari acquirer'),'1':L('from acquirer, repeat','dari acquirer, ulangan'),'2':L('from issuer','dari issuer'),'3':L('from issuer, repeat','dari issuer, ulangan'),'4':L('other','lainnya')};
+  var MTI_VER = {'0':'ISO 8583:1987','1':'ISO 8583:1993','2':'ISO 8583:2003'};
+  var PC = {'00':L('Purchase','Pembelian'),'01':L('Cash withdrawal','Tarik tunai'),'09':L('Purchase with cashback','Pembelian dengan cashback'),'20':L('Refund','Refund'),'30':L('Balance inquiry','Cek saldo'),'31':L('Balance inquiry','Cek saldo'),'38':L('Inquiry','Inquiry'),'39':L('Inquiry','Inquiry'),'40':L('Transfer','Transfer'),'50':L('Payment','Pembayaran')};
+
+  function mtiText(m){
+    if (!/^\d{4}$/.test(m) || !MTI_CLASS[m[1]] || !MTI_FUNC[m[2]]) return null;
+    return tr(MTI_CLASS[m[1]]) + ' ' + tr(MTI_FUNC[m[2]]) + (MTI_ORIG[m[3]] ? ' ' + tr(MTI_ORIG[m[3]]) : '');
+  }
+
+  // ---------- Value helpers ----------
+  function decStr(digits, dec){
+    var d = digits.replace(/^0+/, '');
+    while (d.length <= dec) d = '0' + d;
+    return d.slice(0, d.length - dec) + '.' + d.slice(-dec);
+  }
+  function money(numStr, cur){
+    var p = numStr.split('.'), sep = lang === 'id' ? '.' : ',', dsep = lang === 'id' ? ',' : '.';
+    var code = !cur || cur === '360' ? 'Rp' : (CURRENCY[cur] || cur);
+    return code + ' ' + p[0].replace(/\B(?=(\d{3})+(?!\d))/g, sep) + (p[1] && cur !== '360' ? dsep + p[1] : (p[1] && +p[1] ? dsep + p[1] : ''));
+  }
+  var yearOverride = null;
+  function yearFor(mm, dd){
+    if (yearOverride) return yearOverride;
+    var now = new Date(), y = now.getFullYear(), best = y, diff = Infinity;
+    [y - 1, y, y + 1].forEach(function(c){
+      var t = Math.abs(new Date(c, mm - 1, dd) - now);
+      if (t < diff){ diff = t; best = c; }
+    });
+    return best;
+  }
+  var yearUsed = null;
+  function fullDate(mmdd){
+    var y = yearFor(+mmdd.slice(0, 2), +mmdd.slice(2, 4)); yearUsed = y;
+    return y + mmdd;
+  }
+  function validMD(mmdd){ var m = +mmdd.slice(0, 2), d = +mmdd.slice(2, 4); return m >= 1 && m <= 12 && d >= 1 && d <= 31; }
+  function prettyDT(s){ // YYYYMMDD[hhmmss]
+    var out = s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8);
+    if (s.length >= 14) out += ' ' + s.slice(8, 10) + ':' + s.slice(10, 12) + ':' + s.slice(12, 14);
+    return out;
+  }
+
+  // Simple TLV: tag of tagLen chars + 2-digit length
+  function tlv(v, tagRe){
+    var out = [], i = 0;
+    while (i < v.length){
+      var tag = v.substr(i, 2), ls = v.substr(i + 2, 2);
+      if (!tagRe.test(tag) || !/^\d{2}$/.test(ls)) return null;
+      var n = +ls; if (i + 4 + n > v.length) return null;
+      out.push({tag: tag, len: n, value: v.substr(i + 4, n)}); i += 4 + n;
+    }
+    return out;
+  }
+
+  // ---------- Parser ----------
+  function parse(input, profile){
+    var s = input, pos = 0, checks = [], fields = [], segs = [];
+    function chk(lv, en, id){ checks.push({lv: lv, msg: L(en, id)}); }
+
+    var mti = s.substr(0, 4);
+    segs.push({cls:'t', text: mti});
+    pos = 4;
+    if (!/^\d{4}$/.test(mti)){ chk('err', 'MTI must be 4 digits, found "' + mti + '".', 'MTI harus 4 digit, ditemukan "' + mti + '".'); return {mti: mti, fields: fields, segs: segs, checks: checks, rest: s.slice(4)}; }
+    var mt = mtiText(mti);
+    if (mt) chk('ok', 'MTI ' + mti + ': ' + mt + ' (' + (MTI_VER[mti[0]] || '?') + ').', 'MTI ' + mti + ': ' + mt + ' (' + (MTI_VER[mti[0]] || '?') + ').');
+    else chk('warn', 'MTI ' + mti + ' is not a standard message type.', 'MTI ' + mti + ' bukan tipe pesan standar.');
+
+    var bm = s.substr(4, 16);
+    if (!/^[0-9A-Fa-f]{16}$/.test(bm)){ chk('err', 'Primary bitmap must be 16 hex characters.', 'Bitmap primer harus 16 karakter hex.'); return {mti: mti, fields: fields, segs: segs, checks: checks, rest: s.slice(4)}; }
+    var bits = [];
+    function readBits(hex, offset){ for (var i = 0; i < 16; i++){ var nib = parseInt(hex[i], 16); for (var b = 0; b < 4; b++) if (nib & (8 >> b)) bits.push(offset + i * 4 + b + 1); } }
+    readBits(bm, 0); pos = 20;
+    var bmText = bm;
+    if (bits[0] === 1){
+      var bm2 = s.substr(20, 16);
+      if (!/^[0-9A-Fa-f]{16}$/.test(bm2)){ chk('err', 'Bit 1 is set but the secondary bitmap is not 16 hex characters.', 'Bit 1 aktif tetapi bitmap sekunder bukan 16 karakter hex.'); segs.push({cls:'t', text: bm}); return {mti: mti, fields: fields, segs: segs, checks: checks, rest: s.slice(20)}; }
+      readBits(bm2, 64); pos = 36; bmText = bm + bm2;
+    }
+    segs.push({cls:'t', text: bmText});
+    var present = bits.filter(function(b){ return b !== 1; });
+    chk('ok', (bits[0] === 1 ? 'Primary and secondary bitmap: ' : 'Primary bitmap: ') + present.length + ' data elements (' + present.join(', ') + ').',
+      (bits[0] === 1 ? 'Bitmap primer dan sekunder: ' : 'Bitmap primer: ') + present.length + ' data element (' + present.join(', ') + ').');
+
+    var failed = false;
+    for (var bi = 0; bi < present.length; bi++){
+      var de = present[bi], sp = spec(de, profile);
+      if (!sp){ chk('err', 'No definition for DE' + de + '; cannot continue.', 'Tidak ada definisi DE' + de + '; tidak bisa dilanjutkan.'); failed = true; break; }
+      var pre = '', len = sp.len;
+      if (sp.var){
+        pre = s.substr(pos, sp.var);
+        if (!new RegExp('^\\d{' + sp.var + '}$').test(pre)){ chk('err', 'DE' + de + ': length prefix "' + pre + '" is not ' + sp.var + ' digits.', 'DE' + de + ': prefix panjang "' + pre + '" bukan ' + sp.var + ' digit.'); failed = true; break; }
+        len = +pre; pos += sp.var;
+        if (len > sp.max) chk('warn', 'DE' + de + ': length ' + len + ' exceeds the maximum ' + sp.max + '.', 'DE' + de + ': panjang ' + len + ' melebihi maksimum ' + sp.max + '.');
+      }
+      var value = s.substr(pos, len);
+      if (value.length < len){
+        chk('err', 'DE' + de + ' needs ' + len + ' characters but only ' + value.length + ' remain. The message is truncated or a field length is wrong.', 'DE' + de + ' butuh ' + len + ' karakter tetapi hanya tersisa ' + value.length + '. Pesan terpotong atau panjang field salah.');
+        pos -= pre.length; failed = true; break;
+      }
+      pos += len;
+      var f = {de: de, sp: sp, pre: pre, value: value};
+      if (sp.type === 'n' && !/^\d*$/.test(value)) { f.flag = true; chk('warn', 'DE' + de + ' should be numeric: "' + value + '".', 'DE' + de + ' seharusnya numerik: "' + value + '".'); }
+      if (sp.type === 'x+n' && !/^[CD]\d+$/.test(value)) { f.flag = true; chk('warn', 'DE' + de + ' should be C or D followed by digits.', 'DE' + de + ' seharusnya C atau D diikuti angka.'); }
+      if (sp.type === 'b' && !/^[0-9A-Fa-f]*$/.test(value)) { f.flag = true; chk('warn', 'DE' + de + ' should be hex.', 'DE' + de + ' seharusnya hex.'); }
+      fields.push(f);
+      segs.push({i: fields.length - 1, pre: pre, text: value});
+    }
+    var rest = s.slice(pos);
+    if (!failed){
+      if (rest.trim() === ''){ rest = ''; chk('ok', 'All fields parsed with no leftover characters.', 'Semua field terbaca tanpa sisa karakter.'); }
+      else chk('err', rest.length + ' leftover character(s) after the last field. A field length may be wrong, or the profile does not match.', 'Ada ' + rest.length + ' karakter sisa setelah field terakhir. Mungkin panjang field salah, atau profil tidak cocok.');
+    } else if (profile === 'qris') {
+      chk('info', 'If this message is not from a QRIS switch, try the ISO 8583:1987 profile.', 'Jika pesan ini bukan dari switch QRIS, coba profil ISO 8583:1987.');
+    } else {
+      chk('info', 'If this is a QRIS switching message, try the QRIS profile.', 'Jika ini pesan QRIS switching, coba profil QRIS.');
+    }
+    return {mti: mti, fields: fields, segs: segs, checks: checks, rest: rest};
+  }
+
+  // ---------- Decode fields into JSON entries and table rows ----------
+  function decode(p, profile){
+    var entries = [], rows = [], extra = [];
+    var get = function(de){ for (var i = 0; i < p.fields.length; i++) if (p.fields[i].de === de) return p.fields[i]; return null; };
+    var cur = (get(49) || {}).value;
+    yearUsed = null;
+    function add(key, value, w, raw){ entries.push({k: key, v: value, w: w, raw: !!raw}); }
+
+    p.fields.forEach(function(f, idx){
+      var sp = f.sp, v = f.value, w = sp.w != null ? sp.w : sp.de, meaning = null, kids = [];
+      switch (sp.kind){
+        case 'amount':
+          if (/^\d+$/.test(v)){ var a = decStr(v, 2); add(sp.key, a, w, true); meaning = money(a, cur); } else add(sp.key, v, w);
+          break;
+        case 'mdhms':
+          if (/^\d{10}$/.test(v) && validMD(v)){ var dt = fullDate(v.slice(0, 4)) + v.slice(4); add(sp.key, dt, w); meaning = prettyDT(dt); } else add(sp.key, v, w);
+          break;
+        case 'time':
+          var d13 = get(13);
+          if (d13 && /^\d{4}$/.test(d13.value) && validMD(d13.value) && /^\d{6}$/.test(v)){ var ldt = fullDate(d13.value) + v; add('localTransactionDateTime', ldt, w); meaning = prettyDT(ldt); }
+          else add(sp.key, v, w);
+          break;
+        case 'md':
+          if (sp.de === 13 && get(12) && /^\d{6}$/.test(get(12).value) && /^\d{4}$/.test(v) && validMD(v)) { meaning = L('Combined with DE12 into localTransactionDateTime','Digabung dengan DE12 menjadi localTransactionDateTime'); break; }
+          if (/^\d{4}$/.test(v) && validMD(v)){ var fd = fullDate(v); add(sp.key, fd, w); meaning = prettyDT(fd); } else add(sp.key, v, w);
+          break;
+        case 'fee':
+          if (/^[CD]\d+$/.test(v)){
+            var amt = decStr(v.slice(1), 2);
+            add(sp.key + 'Type', v[0], w); add(sp.key + 'Amount', amt, w + .001, true);
+            meaning = (v[0] === 'C' ? L('Credit ','Kredit ') : L('Debit ','Debit '))[lang] + money(amt, cur);
+            var fk = sp.key === 'fee' ? ['feeType','feeAmount'] : [sp.key + 'Type', sp.key + 'Amount'];
+            entries[entries.length - 2].k = fk[0]; entries[entries.length - 1].k = fk[1];
+          } else add(sp.key, v, w);
+          break;
+        case 'mcc': add(sp.key, v, w); if (MCC[v]) meaning = MCC[v]; break;
+        case 'cur': add(sp.key, v, w); if (CURRENCY[v]) meaning = CURRENCY[v]; break;
+        case 'rc': add(sp.key, v, w); meaning = RC[v] ? tr(RC[v]) : null; break;
+        case 'nmc': add(sp.key, v, w); meaning = NMC[v] ? tr(NMC[v]) : null; break;
+        case 'pc':
+          add(sp.key, v, w);
+          if (/^\d{6}$/.test(v)) meaning = (PC[v.slice(0, 2)] ? tr(PC[v.slice(0, 2)]) : (lang === 'id' ? 'Jenis transaksi ' + v.slice(0, 2) + ' (khusus jaringan)' : 'Transaction type ' + v.slice(0, 2) + ' (network-specific)')) + ' · ' + (lang === 'id' ? 'dari ' : 'from ') + v.slice(2, 4) + ' · ' + (lang === 'id' ? 'ke ' : 'to ') + v.slice(4, 6);
+          break;
+        case 'de43':
+          if (v.length === 40){
+            var nm = v.slice(0, 25), ct = v.slice(25, 38), cn = v.slice(38, 40);
+            add('merchantName', nm.trim(), w); add('merchantCity', ct.trim(), w + .001); add('merchantCountry', cn, w + .002);
+            kids.push({tag:'43.1', name:L('Merchant name','Nama merchant'), key:'merchantName', fmt:'ans 25', value: nm, len: 25});
+            kids.push({tag:'43.2', name:L('Merchant city','Kota merchant'), key:'merchantCity', fmt:'ans 13', value: ct, len: 13});
+            kids.push({tag:'43.3', name:L('Country code','Kode negara'), key:'merchantCountry', fmt:'a 2', value: cn, len: 2});
+          } else add(sp.key, v, w);
+          break;
+        case 'tlv48':
+          var t48 = tlv(v, /^[A-Z0-9]{2}$/);
+          if (t48){
+            t48.forEach(function(t, j){
+              var m = T48[t.tag], key = m ? m[0] : 'de48' + t.tag, val = m && m[2] ? t.value.trim() : t.value;
+              add(key, val, w + j * .001);
+              kids.push({tag:'48.' + t.tag, name: m ? m[1] : L('Tag ' + t.tag, 'Tag ' + t.tag), key: key, fmt: 'TLV', value: t.value, len: t.len,
+                meaning: t.tag === 'MC' && CRITERIA[t.value] ? tr(CRITERIA[t.value]) : null});
+            });
+          } else { add(sp.key, v, w); extra.push(['warn', 'DE48 is not valid TLV (2-character tag + 2-digit length); shown raw.', 'DE48 bukan TLV yang valid (tag 2 karakter + panjang 2 digit); ditampilkan mentah.']); }
+          break;
+        case 'tlv57':
+          var t57 = tlv(v, /^\d{2}$/);
+          if (t57){
+            t57.forEach(function(t, j){
+              var m = T57[t.tag], key = m ? m[0] : 'de57Tag' + t.tag;
+              add(key, t.value, t.tag === '62' ? 102.5 : w + j * .001);
+              var kid = {tag:'57.' + t.tag, name: m ? m[1] : L('Tag ' + t.tag, 'Tag ' + t.tag), key: key, fmt: 'TLV', value: t.value, len: t.len, sub: []};
+              if (t.tag === '62'){
+                var t62 = tlv(t.value, /^\d{2}$/);
+                if (t62) t62.forEach(function(x){
+                  var n = +x.tag;
+                  kid.sub.push({tag:'57.62.' + x.tag, name: T62[x.tag] || (n >= 50 ? L('Payment system specific','Khusus sistem pembayaran') : L('RFU','RFU')), fmt:'TLV', value: x.value, len: x.len, d: 2});
+                });
+              }
+              kids.push(kid);
+            });
+          } else { add(sp.key, v, w); extra.push(['warn', 'DE57 is not valid TLV (2-digit tag + 2-digit length); shown raw.', 'DE57 bukan TLV yang valid (tag 2 digit + panjang 2 digit); ditampilkan mentah.']); }
+          break;
+        case 'de90':
+          add(sp.key, v, w);
+          if (/^\d{42}$/.test(v)){
+            [['90.1',0,4,L('Original MTI','MTI asli')],['90.2',4,6,L('Original STAN','STAN asli')],['90.3',10,10,L('Original transmission date/time','Tanggal/jam transmisi asli')],['90.4',20,11,L('Original acquirer ID','ID acquirer asli')],['90.5',31,11,L('Original forwarding ID','ID penerus asli')]]
+              .forEach(function(x){ kids.push({tag:x[0], name:x[3], fmt:'n ' + x[2], value: v.substr(x[1], x[2]), len: x[2]}); });
+          }
+          break;
+        default: add(sp.key, v, w);
+      }
+      rows.push({i: idx, tag: String(sp.de), name: sp.name, key: entries.length && sp.kind !== 'de43' && sp.kind !== 'tlv48' && sp.kind !== 'tlv57' ? entries[entries.length - 1].k : null,
+        fmt: fmtLabel(sp), value: (sp.var ? f.pre + ' ' : '') + v, rawValue: v, len: v.length, meaning: meaning, flag: f.flag, kids: kids});
+    });
+
+    entries.forEach(function(e, j){ e.seq = j; });
+    entries.sort(function(a, b){ return a.w - b.w || a.seq - b.seq; });
+    return {entries: entries, rows: rows, extra: extra, get: get, cur: cur};
+  }
+
+  // ---------- JSON output ----------
+  var pretty = false;
+  function serialize(entries, html){
+    var nl = pretty ? '\n' : '', ind = pretty ? '  ' : '', sp = pretty ? ' ' : '';
+    var P = function(t){ return html ? '<span class="p">' + t + '</span>' : t; };
+    var out = P('{') + nl;
+    entries.forEach(function(e, j){
+      var k = JSON.stringify(e.k), v = e.raw ? e.v : JSON.stringify(e.v);
+      out += ind + (html ? '<span class="k">' + esc(k) + '</span>' : k) + P(':') + sp +
+        (html ? '<span class="' + (e.raw ? 'n' : 's') + '">' + esc(v) + '</span>' : v) + (j < entries.length - 1 ? P(',') : '') + nl;
+    });
+    return out + P('}');
+  }
+
+  // ---------- Render ----------
+  var q = $('q'), current = null;
+  function render(){
+    // Drop line breaks and leading whitespace only; inner spaces are part of fixed-width fields.
+    var raw = q.value.replace(/^[\s﻿]+/, '').replace(/[\r\n]+/g, '');
+    var y = $('year').value.trim();
+    yearOverride = /^\d{4}$/.test(y) ? +y : null;
+    var st = $('status');
+    if (!raw){ $('out').hidden = true; $('empty').hidden = false; st.hidden = true; current = null; return; }
+    var profile = $('profile').value;
+    var p = parse(raw, profile), d = decode(p, profile);
+    d.extra.forEach(function(x){ p.checks.push({lv: x[0], msg: L(x[1], x[2])}); });
+    if (yearUsed && !yearOverride) p.checks.push({lv:'info', msg: L('Dates carry no year in ISO 8583; ' + yearUsed + ' was picked as the closest to today. Set Year to override.', 'Tanggal di ISO 8583 tidak membawa tahun; dipilih ' + yearUsed + ' sebagai yang terdekat dengan hari ini. Isi Tahun untuk mengganti.')});
+    var rc = d.get(39);
+    if (rc) p.checks.push({lv: rc.value === '00' ? 'ok' : 'warn', msg: L('Response code ' + rc.value + (RC[rc.value] ? ': ' + RC[rc.value].en : '') + '.', 'Kode respons ' + rc.value + (RC[rc.value] ? ': ' + RC[rc.value].id : '') + '.')});
+    current = {p: p, d: d};
+
+    var hasErr = p.checks.some(function(c){ return c.lv === 'err'; }), hasWarn = p.checks.some(function(c){ return c.lv === 'warn'; });
+    st.hidden = false;
+    st.className = 'status ' + (hasErr ? 'err' : hasWarn ? 'warn' : 'ok');
+    st.textContent = u(hasErr ? 'errStatus' : hasWarn ? 'warnStatus' : 'okStatus');
+    $('empty').hidden = true; $('out').hidden = false;
+
+    // Summary
+    var sum = [], mt = mtiText(p.mti);
+    sum.push([u('sMsg'), p.mti, mt]);
+    var amt = d.get(4);
+    if (amt && /^\d+$/.test(amt.value)) sum.push([u('sAmount'), money(decStr(amt.value, 2), d.cur)]);
+    var m43 = d.get(43);
+    if (m43 && profile === 'qris' && m43.value.length === 40) sum.push([u('sMerchant'), m43.value.slice(0, 25).trim(), m43.value.slice(25, 38).trim()]);
+    var rrn = d.get(37); if (rrn) sum.push([u('sRrn'), rrn.value]);
+    if (rc) sum.push([u('sRc'), rc.value, RC[rc.value] ? tr(RC[rc.value]) : null]);
+    sum.push([u('sFields'), String(p.fields.length)]);
+    $('summary').innerHTML = sum.map(function(s){ return '<div><dt>' + esc(s[0]) + '</dt><dd>' + esc(s[1]) + (s[2] ? '<small>' + esc(s[2]) + '</small>' : '') + '</dd></div>'; }).join('');
+
+    // Raw, colour-coded
+    $('raw').innerHTML = p.segs.map(function(sg){
+      if (sg.cls) return '<span class="' + sg.cls + '">' + esc(sg.text) + '</span>';
+      return '<span class="seg" data-i="' + sg.i + '">' + (sg.pre ? '<span class="l">' + esc(sg.pre) + '</span>' : '') + '<span class="v' + (sg.i % 2) + '">' + esc(sg.text) + '</span></span>';
+    }).join('') + (p.rest ? '<span class="bad">' + esc(p.rest) + '</span>' : '');
+
+    // JSON
+    $('json').innerHTML = serialize(d.entries, true);
+
+    // Rows
+    function rowHTML(r, i, child, depth){
+      return '<li class="row' + (child ? ' child' : '') + (r.flag ? ' flag' : '') + '" data-i="' + i + '"' + (child ? ' style="--d:' + depth + '"' : '') + '>' +
+        '<span class="tag">' + esc(r.tag) + '</span>' +
+        '<span class="name">' + esc(tr(r.name)) + (r.fmt ? '<span class="fmt">' + esc(r.fmt) + '</span>' : '') + (r.key ? '<span class="key">→ ' + esc(r.key) + '</span>' : '') + '</span>' +
+        '<span class="val">' + esc(r.rawValue != null ? r.rawValue : r.value) + (r.meaning ? '<span class="meaning">' + esc(tr(r.meaning)) + '</span>' : '') + '</span>' +
+        '<span class="len">' + r.len + '</span></li>';
+    }
+    var html = '';
+    d.rows.forEach(function(r){
+      html += rowHTML(r, r.i, false, 0);
+      r.kids.forEach(function(k){
+        html += rowHTML(k, r.i, true, 1);
+        (k.sub || []).forEach(function(s){ html += rowHTML(s, r.i, true, 2); });
+      });
+    });
+    $('rows').innerHTML = html;
+
+    var order = {err:0, warn:1, info:2, ok:3};
+    $('checks').innerHTML = p.checks.slice().sort(function(a, b){ return order[a.lv] - order[b.lv]; })
+      .map(function(c){ return '<li class="' + c.lv + '">' + esc(tr(c.msg)) + '</li>'; }).join('');
+  }
+
+  // Hover link between raw message and rows
+  var hot = null;
+  function setHot(id){
+    if (hot === id) return;
+    document.querySelectorAll('.hl').forEach(function(el){ el.classList.remove('hl'); });
+    hot = id;
+    if (id != null) document.querySelectorAll('[data-i="' + id + '"]').forEach(function(el){ el.classList.add('hl'); });
+  }
+  ['raw', 'rows'].forEach(function(box){
+    $(box).addEventListener('mouseover', function(e){ var el = e.target.closest('[data-i]'); setHot(el ? el.getAttribute('data-i') : null); });
+    $(box).addEventListener('mouseleave', function(){ setHot(null); });
+  });
+  $('raw').addEventListener('click', function(e){
+    var el = e.target.closest('[data-i]');
+    var row = el && document.querySelector('.row[data-i="' + el.getAttribute('data-i') + '"]');
+    if (row) row.scrollIntoView({behavior:'smooth', block:'center'});
+  });
+
+  // ---------- Sample (fictional merchant and payer) ----------
+  function pad(s, n){ while (s.length < n) s += ' '; return s.slice(0, n); }
+  function t2(tag, v){ return tag + ('0' + v.length).slice(-2) + v; }
+  function build(mti, f){
+    var des = Object.keys(f).map(Number).sort(function(a, b){ return a - b; });
+    var hasSec = des.some(function(x){ return x > 64; });
+    var bits = new Array(128).fill(0); if (hasSec) bits[0] = 1;
+    des.forEach(function(x){ bits[x - 1] = 1; });
+    var hex = ''; for (var i = 0; i < (hasSec ? 128 : 64); i += 4) hex += (bits[i] * 8 + bits[i + 1] * 4 + bits[i + 2] * 2 + bits[i + 3]).toString(16).toUpperCase();
+    var body = des.map(function(x){ var sp = spec(x, 'qris'), v = f[x]; return (sp.var ? ('00' + v.length).slice(-sp.var) : '') + v; }).join('');
+    return mti + hex + body;
+  }
+  function two(n){ return ('0' + n).slice(-2); }
+  function sample(){
+    var now = new Date(), g = new Date(now.getTime() - 7 * 3600e3);
+    var lmd = two(now.getMonth() + 1) + two(now.getDate()), hms = two(now.getHours()) + two(now.getMinutes()) + two(now.getSeconds());
+    var gmt = two(g.getMonth() + 1) + two(g.getDate()) + two(g.getHours()) + two(g.getMinutes()) + two(g.getSeconds());
+    return build('0200', {
+      2: '9360099900000012345', 3: '266000', 4: '000002500000', 7: gmt, 11: '004217', 12: hms, 13: lmd, 15: lmd, 17: lmd,
+      18: '5812', 22: '011', 28: 'C00000000', 32: '93600999', 33: '360099', 37: '000412345678', 38: 'A1B2C3',
+      41: pad('KASIR01', 16), 42: '000000000012345', 43: pad('WARUNG CONTOH', 25) + pad('JAKARTA SELAT', 13) + 'ID',
+      48: t2('PI', 'Q001') + t2('CD', pad('BUDI SANTOSO', 30)) + t2('MC', 'UMI'), 49: '360',
+      57: t2('61', '12190') + t2('62', t2('01', 'INV-0001') + t2('07', 'KASIR01')),
+      100: '93600888', 102: '9360088800001234567'
+    });
+  }
+
+  // ---------- Wiring ----------
+  function applyLang(l){
+    lang = l;
+    document.documentElement.lang = l;
+    document.querySelectorAll('[data-t]').forEach(function(el){ el.textContent = u(el.getAttribute('data-t')); });
+    q.placeholder = u('placeholder');
+    $('year').placeholder = u('yearAuto');
+    document.querySelectorAll('.lang button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === l)); });
+    try { localStorage.setItem('iso8583-lang', l); } catch (e) {}
+    render();
+  }
+  document.querySelectorAll('.lang button').forEach(function(b){
+    b.addEventListener('click', function(){ applyLang(b.getAttribute('data-lang')); });
+  });
+
+  var root = document.documentElement;
+  try { var t = localStorage.getItem('theme'); if (t) root.setAttribute('data-theme', t); } catch (e) {}
+  $('theme').addEventListener('click', function(){
+    var c = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = c === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+
+  function setFmt(pr){
+    pretty = pr;
+    $('fmtMin').setAttribute('aria-pressed', String(!pr)); $('fmtPretty').setAttribute('aria-pressed', String(pr));
+    try { localStorage.setItem('iso8583-pretty', pr ? '1' : '0'); } catch (e) {}
+    render();
+  }
+  $('fmtMin').addEventListener('click', function(){ setFmt(false); });
+  $('fmtPretty').addEventListener('click', function(){ setFmt(true); });
+
+  q.addEventListener('input', render);
+  $('profile').addEventListener('change', function(){ try { localStorage.setItem('iso8583-profile', this.value); } catch (e) {} render(); });
+  $('year').addEventListener('input', render);
+  $('sample').addEventListener('click', function(){ q.value = sample(); render(); });
+  $('clear').addEventListener('click', function(){ q.value = ''; render(); q.focus(); });
+  $('copy').addEventListener('click', function(){
+    if (!current) return;
+    var btn = this;
+    navigator.clipboard.writeText(serialize(current.d.entries, false)).then(function(){
+      btn.textContent = u('copied');
+      setTimeout(function(){ btn.textContent = u('copyJson'); }, 1400);
+    }, function(){});
+  });
+
+  try {
+    var sp0 = localStorage.getItem('iso8583-profile'); if (sp0 === 'iso' || sp0 === 'qris') $('profile').value = sp0;
+    if (localStorage.getItem('iso8583-pretty') === '1'){ pretty = true; $('fmtMin').setAttribute('aria-pressed', 'false'); $('fmtPretty').setAttribute('aria-pressed', 'true'); }
+  } catch (e) {}
+  var saved = null;
+  try { saved = localStorage.getItem('iso8583-lang'); } catch (e) {}
+  applyLang(saved || ((navigator.language || '').toLowerCase().indexOf('id') === 0 ? 'id' : 'en'));
+
+  // Exposed for testing in the console
+  window.iso8583 = { decode: function(s, profile){ var pr = profile || 'qris', p = parse(s, pr), d = decode(p, pr); return serialize(d.entries, false); } };
+})();
+</script>
+</body>
+</html>
