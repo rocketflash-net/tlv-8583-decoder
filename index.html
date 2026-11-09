@@ -488,6 +488,12 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
     return out;
   }
 
+  // Printable view of leftover text: non-ASCII or control chars as U+XXXX
+  function show(s){
+    var t = s.length > 24 ? s.slice(0, 24) : s;
+    return '"' + t.replace(/[^\x21-\x7E]/g, function(c){ return c === ' ' ? '\u2423' : 'U+' + ('000' + c.charCodeAt(0).toString(16).toUpperCase()).slice(-4); }) + (s.length > 24 ? '\u2026' : '') + '"';
+  }
+
   // ---------- Parser ----------
   function parse(input, profile){
     var s = input, pos = 0, checks = [], fields = [], segs = [];
@@ -544,7 +550,7 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
     var rest = s.slice(pos);
     if (!failed){
       if (rest.trim() === ''){ rest = ''; chk('ok', 'All fields parsed with no leftover characters.', 'Semua field terbaca tanpa sisa karakter.'); }
-      else chk('err', rest.length + ' leftover character(s) after the last field. A field length may be wrong, or the profile does not match.', 'Ada ' + rest.length + ' karakter sisa setelah field terakhir. Mungkin panjang field salah, atau profil tidak cocok.');
+      else chk('err', rest.length + ' leftover character(s) after the last field (' + show(rest) + '). A field length may be wrong, or the profile does not match.', 'Ada ' + rest.length + ' karakter sisa setelah field terakhir (' + show(rest) + '). Mungkin panjang field salah, atau profil tidak cocok.');
     } else if (profile === 'qris') {
       chk('info', 'If this message is not from a QRIS switch, try the ISO 8583:1987 profile.', 'Jika pesan ini bukan dari switch QRIS, coba profil ISO 8583:1987.');
     } else {
@@ -670,7 +676,8 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
   var q = $('q'), current = null;
   function render(){
     // Drop line breaks and leading whitespace only; inner spaces are part of fixed-width fields.
-    var raw = q.value.replace(/^[\s﻿]+/, '').replace(/[\r\n]+/g, '');
+    var INVIS = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g, invisible = (q.value.match(INVIS) || []).length;
+    var raw = q.value.replace(INVIS, '').replace(/^\s+/, '').replace(/[\r\n]+/g, '');
     var y = $('year').value.trim();
     yearOverride = /^\d{4}$/.test(y) ? +y : null;
     var st = $('status');
@@ -678,6 +685,7 @@ footer{padding:2.5rem 0 3rem;color:var(--slate);font-size:.9rem}
     var profile = $('profile').value;
     var p = parse(raw, profile), d = decode(p, profile);
     d.extra.forEach(function(x){ p.checks.push({lv: x[0], msg: L(x[1], x[2])}); });
+    if (invisible) p.checks.push({lv:"info", msg: L("Removed " + invisible + " invisible character(s) (zero-width space, BOM, soft hyphen) that often come along when copying from chat apps.", "Membuang " + invisible + " karakter tak terlihat (zero-width space, BOM, soft hyphen) yang sering ikut tersalin dari aplikasi chat.")});
     if (yearUsed && !yearOverride) p.checks.push({lv:'info', msg: L('Dates carry no year in ISO 8583; ' + yearUsed + ' was picked as the closest to today. Set Year to override.', 'Tanggal di ISO 8583 tidak membawa tahun; dipilih ' + yearUsed + ' sebagai yang terdekat dengan hari ini. Isi Tahun untuk mengganti.')});
     var rc = d.get(39);
     if (rc) p.checks.push({lv: rc.value === '00' ? 'ok' : 'warn', msg: L('Response code ' + rc.value + (RC[rc.value] ? ': ' + RC[rc.value].en : '') + '.', 'Kode respons ' + rc.value + (RC[rc.value] ? ': ' + RC[rc.value].id : '') + '.')});
